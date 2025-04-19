@@ -20,13 +20,22 @@ if ($bLooksLikeJson) {
     // Проверяем успешность декодирования и наличие поля phone
     if (json_last_error() === JSON_ERROR_NONE && isset($aDecodedData['phone'])) {
         $sPhone = $aDecodedData['phone'];
+		if(isset($aDecodedData['email'])) {
+			$sEmail = $aDecodedData['email'];
+		}
     } else {
         // Если декодирование не удалось или нет поля phone, берём из POST
         $sPhone = $_POST["phone"];
+		if(isset($_POST['email'])) {
+			$sEmail = $_POST['email'];
+		}
     }
 } else {
     // Если данные не в формате JSON, берём из POST
     $sPhone = $_POST["phone"];
+	if(isset($_POST['email'])) {
+		$sEmail = $_POST['email'];
+	}
 }
 
 $mail = new PHPMailer(true);
@@ -57,10 +66,12 @@ try {
 
 	$mail->Subject = 'Данные';
 	$mail->Body    = '
-			Пользователь оставил данные <br> 
+		Пользователь оставил данные <br>
+		' . (isset($sEmail) ? "Почта: ".$sEmail."<br>" : "") . '
 		Номер телефона: ' . $sPhone . '';
 	$mail->AltBody = "
 		Пользователь оставил данные
+		".(isset($sEmail) ? "Почта: ".$sEmail : "")."
 		Номер телефона: ".$sPhone."";
 
 	$mail->send();
