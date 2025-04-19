@@ -52,7 +52,7 @@ function fnMain() {
         activeDotClass: "dot-active"
     });
 
-    HandleForm({
+    RequestForm({
         messages: {
             loading: "Загрузка...",
             success: "Спасибо! Скоро мы с вами свяжемся!",
@@ -60,6 +60,24 @@ function fnMain() {
         },
         form: ".main-form",
         formFooter: ".popup-form__label, .popup-form__input, .popup-form__btn",
+        statusMessageClass: "status",
+        handler: "server.php",
+        dataFormat: "json"
+    });
+
+    CountPrice({
+        fields: ".counter-block-input",
+        placeSelect: "#select",
+        sumBlock: "#total"
+    });
+
+    FeedbackForm({
+        messages: {
+            loading: "Загрузка...",
+            success: "Спасибо! Скоро мы с вами свяжемся!",
+            failure: "Что-то пошло не так..."
+        },
+        form: "#form",
         statusMessageClass: "status",
         handler: "server.php",
         dataFormat: "json"
@@ -264,7 +282,7 @@ function Slider(Settings) {
     });
 }
 
-function HandleForm(Settings) {
+function RequestForm(Settings) {
     let message = Settings.messages;
 
     let form = document.querySelector(Settings.form),
@@ -334,5 +352,116 @@ function HandleForm(Settings) {
         for(let i = 0; i < input.length; i++) {
             input[i].value = "";
         }
+    });
+}
+
+function CountPrice(Settings) {
+    let persons = document.querySelectorAll(Settings.fields)[0],
+        restDays = document.querySelectorAll(Settings.fields)[1],
+        place = document.querySelector(Settings.placeSelect),
+        totalValue = document.querySelector(Settings.sumBlock),
+        personsSum = 0,
+        daysSum = 0,
+        total = 0;
+
+    totalValue.textContent = '0';
+
+    persons.addEventListener("change", function() {
+        personsSum = +this.value;
+        total = (daysSum + personsSum)*4000;
+
+        if(restDays.value == "" || this.value == "") {
+            totalValue.textContent = '0';
+        }
+        else {
+            totalValue.textContent = String(total);
+        }
+    });
+
+    restDays.addEventListener("change", function() {
+        daysSum = +this.value;
+        total = (daysSum + personsSum)*4000;
+
+        if(persons.value == "" || this.value == "") {
+            totalValue.textContent = '0';
+        }
+        else {
+            totalValue.textContent = String(total);
+        }
+    });
+
+    place.addEventListener("change", function() {
+        if(restDays.value == "" || persons.value == "") {
+            totalValue.textContent = '0';
+        }
+        else {
+            let a = total;
+            totalValue.textContent = String(a * +this.options[this.selectedIndex].value);
+        }
+    });
+}
+
+function FeedbackForm(Settings) {
+    const Form = document.querySelector(Settings.form);
+    const Container = Form.parentElement;
+    const message = Settings.messages;
+    let StatusMessage = document.createElement("div");
+    StatusMessage.classList.add(Settings.statusMessageClass);
+
+    const EmailField = Form.querySelector(`input[type="email"]`);
+    const PhoneField = Form.querySelector(`input[type="tel"]`);
+    EmailField.setAttribute("name", "email");
+    PhoneField.setAttribute("name", "phone");
+    
+    Form.addEventListener("submit", function(EventObject) {
+        EventObject.preventDefault();
+        Container.append(StatusMessage);
+
+        const HttpStatus = {
+            OK: 200,
+            NOT_MODIFIED: 304
+        };
+        let request = new XMLHttpRequest();
+        request.open("POST", Settings.handler);
+
+        let formData = new FormData(Form);
+
+        let sRequestBody;
+        if(Settings.dataFormat == "urlencode") {
+            request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            sRequestBody = "";
+            for(let [sName, sValue] of formData) {
+                sRequestBody += `${sName}=${encodeURIComponent(sValue)}&`;
+            }
+            request.send(sRequestBody.slice(0, -1));
+        }
+        if(Settings.dataFormat == "json") {
+            request.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+            let obj = {};
+            formData.forEach(function(value, key) {
+                obj[key] = value;
+            });
+            sRequestBody = JSON.stringify(obj);
+            request.send(sRequestBody);
+        }
+
+        Form.style.display = "none";
+        StatusMessage.textContent = message.loading;
+
+        request.addEventListener("readystatechange", function() {
+            if(request.readyState < XMLHttpRequest.DONE) {
+                StatusMessage.textContent = message.loading;
+            }
+            else if(request.readyState === XMLHttpRequest.DONE) {
+                if(request.status == HttpStatus.OK || request.status == HttpStatus.NOT_MODIFIED) {
+                    Form.remove();
+                    StatusMessage.textContent = message.success;
+                }
+                else {
+                    Form.style.display = "unset";
+                    StatusMessage.textContent = message.failure;
+                }
+            }
+        });
     });
 }
